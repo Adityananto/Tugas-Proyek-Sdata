@@ -1,0 +1,188 @@
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <queue>
+#include <stack>
+#include <vector>
+#include <ctime>
+using namespace std;
+
+// Struct for KTP data
+struct KTP {
+    string id;
+    string nama;
+    string alamat;
+};
+
+// Struct for inventory item
+struct Item {
+    string kode;
+    string tanggal;
+};
+
+// Struct for buyer
+struct Pembeli {
+    string ktp;
+    string waktu;
+    string kodeItem;
+};
+
+class InventorySystem {
+private:
+    vector<KTP> ktpData;
+    vector<Item> inventory;
+    queue<Pembeli> antrian;
+    string currentKTP;
+
+    bool isValidKTP(string ktp) {
+        for(const auto& k : ktpData) {
+            if(k.id == ktp) return true;
+        }
+        return false;
+    }
+public:
+    // Initialize KTP data
+    void inputKTP() {
+        ofstream file("data_ktp.txt");
+        for(int i = 0; i < 3; i++) {
+            KTP ktp;
+            cout << "Masukkan data KTP " << i+1 << endl;
+            cout << "ID: ";
+            cin >> ktp.id;
+            cout << "Nama: ";
+            cin.ignore();
+            getline(cin, ktp.nama);
+            cout << "Alamat: ";
+            getline(cin, ktp.alamat);
+            
+            ktpData.push_back(ktp);
+            file << ktp.id << "," << ktp.nama << "," << ktp.alamat << endl;
+        }
+        file.close();
+    }
+
+// Admin login
+    bool adminLogin() {
+        string ktp;
+        cout << "Masukkan ID KTP: ";
+        cin >> ktp;
+        if(isValidKTP(ktp)) {
+            currentKTP = ktp;
+            return true;
+        }
+        return false;
+    }
+
+    // Add new item to inventory
+    void addItem() {
+        Item item;
+        cout << "Masukkan kode item: ";
+        cin >> item.kode;
+        
+        time_t now = time(0);
+        tm* ltm = localtime(&now);
+        item.tanggal = to_string(1900 + ltm->tm_year) + "-" +
+                      to_string(1 + ltm->tm_mon) + "-" +
+                      to_string(ltm->tm_mday);
+        
+        inventory.push_back(item);
+        cout << "Item berhasil ditambahkan!" << endl;
+    }
+// Record buyer
+    void recordBuyer() {
+        Pembeli pembeli;
+        cout << "Masukkan ID KTP pembeli: ";
+        cin >> pembeli.ktp;
+        
+        if(!isValidKTP(pembeli.ktp)) {
+            cout << "KTP tidak valid!" << endl;
+            return;
+        }
+
+        time_t now = time(0);
+        tm* ltm = localtime(&now);
+        pembeli.waktu = to_string(ltm->tm_hour) + ":" + to_string(ltm->tm_min);
+        
+        if(!inventory.empty()) {
+            pembeli.kodeItem = inventory.back().kode; // LIFO
+            antrian.push(pembeli);
+            cout << "Pembeli berhasil dicatat dalam antrian!" << endl;
+        } else {
+            cout << "Inventory kosong!" << endl;
+        }
+    }
+
+    // Process sale
+    void processSale() {
+        if(antrian.empty()) {
+            cout << "Tidak ada pembeli dalam antrian!" << endl;
+            return;
+        }
+
+        Pembeli pembeli = antrian.front();
+        antrian.pop();
+
+        // Find and remove item (FIFO)
+        for(auto it = inventory.begin(); it != inventory.end(); ++it) {
+            if(it->kode == pembeli.kodeItem) {
+                inventory.erase(it);
+                cout << "Penjualan berhasil diproses!" << endl;
+                cout << "Pembeli: " << pembeli.ktp << endl;
+                cout << "Item: " << pembeli.kodeItem << endl;
+                cout << "Waktu: " << pembeli.waktu << endl;
+                return;
+            }
+        }
+        cout << "Item tidak ditemukan!" << endl;
+    }
+
+    // Display menu
+    void displayMenu() {
+        while(true) {
+            cout << "\nMenu:" << endl;
+            cout << "1. Admin Sign In" << endl;
+            cout << "2. Entri Item Barang" << endl;
+            cout << "3. Catat Pembeli" << endl;
+            cout << "4. Jual Item Barang" << endl;
+            cout << "5. Keluar" << endl;
+            
+            int choice;
+            cout << "Pilihan: ";
+            cin >> choice;
+
+            switch(choice) {
+                case 1:
+                    if(adminLogin()) cout << "Login berhasil!" << endl;
+                    else cout << "Login gagal!" << endl;
+                    break;
+                case 2:
+                    if(!currentKTP.empty()) addItem();
+                    else cout << "Harap login terlebih dahulu!" << endl;
+break;
+                case 3:
+                    recordBuyer();
+                    break;
+                case 4:
+                    processSale();
+                    break;
+                case 5:
+                    return;
+                default:
+                    cout << "Pilihan tidak valid!" << endl;
+            }
+        }
+    }
+};
+
+int main() {
+    InventorySystem system;
+    cout << "=== Sistem Inventori Gudang ===" << endl;
+    
+    // Initial KTP data input
+    system.inputKTP();
+    
+    // Run main menu
+    system.displayMenu();
+    
+    return 0;
+}
